@@ -48,12 +48,15 @@ jobs:
             if [ -z "$(ls -A "$DIRNAME")" ]; then
               continue
             fi
-            zip -9 -r "${DIRNAME}.zip" "$DIRNAME" \
+            # 重点：进入目录打包，zip内不含外层DIRNAME文件夹
+            cd "$DIRNAME"
+            zip -9 -r ../"${DIRNAME}.zip" . \
               -x "*.log" \
               -x "*.tmp" \
               -x "*.cache" \
               -x ".DS_Store" \
               -x "Thumbs.db"
+            cd ..
             sha256sum "${DIRNAME}.zip" > "${DIRNAME}.zip.sha256"
             cat "${DIRNAME}.zip.sha256" >> body.md
           done
