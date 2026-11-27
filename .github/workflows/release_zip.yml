@@ -1,0 +1,74 @@
+name: Package Lang Zips
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_suffix:
+        description: 版本后缀（留空自动用时间戳，填 1.0.0 生成 v1.0.0）
+        required: false
+        default: ''
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate version tag
+        id: genver
+        run: |
+          if [ -n "${{ github.event.inputs.version_suffix }}" ]; then
+            TAG="v${{ github.event.inputs.version_suffix }}"
+          else
+            TAG="v$(date +%Y%m%d%H%M)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Auto find folders, build zip & sha256
+        id: build_packages
+        run: |
+          FILE_LIST=""
+          # 遍历根目录下一级文件夹，排除 . 开头隐藏目录
+          for D in */; do
+            DIRNAME="${D%/}"
+            # 跳过隐藏文件夹
+            if [[ "$DIRNAME" == .* ]]; then
+              continue
+            fi
+            zip -9 -r "${DIRNAME}.zip" "$DIRNAME" \
+              -x "*.log" \
+              -x "*.tmp" \
+              -x "*.cache" \
+              -x ".DS_Store" \
+              -x "Thumbs.db"
+            sha256sum "${DIRNAME}.zip" > "${DIRNAME}.zip.sha256"
+            FILE_LIST+="${DIRNAME}.zip
+${DIRNAME}.zip.sha256
+"
+          done
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$FILE_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create & push tag
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.genver.outputs.tag }}
+          git push origin ${{ steps.genver.outputs.tag }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.genver.outputs.tag }}
+          name: Lang Package ${{ steps.genver.outputs.tag }}
+          files: ${{ steps.build_packages.outputs.files }}
+          fail_on_unmatched_files: true
