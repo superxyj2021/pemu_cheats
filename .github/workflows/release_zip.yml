@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version_suffix:
-        description: 版本后缀（留空自动用时间戳，填 1.0.0 生成 v1.0.0）
+        description: 版本后缀（留空自动时间戳，填1.0.0生成v1.0.0）
         required: false
         default: ''
 
@@ -32,14 +32,16 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Auto find folders, build zip & sha256
-        id: build_packages
+      - name: Auto scan folders, build zip + sha256, write assets list
         run: |
-          FILE_LIST=""
-          # 遍历根目录下一级文件夹，排除 . 开头隐藏目录
+          > assets.txt
+          > body.md
+          echo "### 校验信息" >> body.md
+          echo '```' >> body.md
+
           for D in */; do
             DIRNAME="${D%/}"
-            # 跳过隐藏文件夹
+            # 跳过隐藏目录
             if [[ "$DIRNAME" == .* ]]; then
               continue
             fi
@@ -50,13 +52,14 @@ jobs:
               -x ".DS_Store" \
               -x "Thumbs.db"
             sha256sum "${DIRNAME}.zip" > "${DIRNAME}.zip.sha256"
-            FILE_LIST+="${DIRNAME}.zip
-${DIRNAME}.zip.sha256
-"
+
+            echo "${DIRNAME}.zip" >> assets.txt
+            echo "${DIRNAME}.zip.sha256" >> assets.txt
+
+            # 写入release正文
+            cat "${DIRNAME}.zip.sha256" >> body.md
           done
-          echo "files<<EOF" >> $GITHUB_OUTPUT
-          echo "$FILE_LIST" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo '```' >> body.md
 
       - name: Create & push tag
         run: |
@@ -70,5 +73,6 @@ ${DIRNAME}.zip.sha256
         with:
           tag_name: ${{ steps.genver.outputs.tag }}
           name: Lang Package ${{ steps.genver.outputs.tag }}
-          files: ${{ steps.build_packages.outputs.files }}
+          files: assets.txt
+          body_path: body.md
           fail_on_unmatched_files: true
