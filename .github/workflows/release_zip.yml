@@ -37,7 +37,6 @@ jobs:
           > body.md
           echo "### 校验信息" >> body.md
           echo '```' >> body.md
-          FILES=""
 
           for D in */; do
             DIRNAME="${D%/}"
@@ -56,15 +55,12 @@ jobs:
               -x ".DS_Store" \
               -x "Thumbs.db"
             sha256sum "${DIRNAME}.zip" > "${DIRNAME}.zip.sha256"
-
-            # 拼接文件列表，空格分隔
-            FILES+="${DIRNAME}.zip ${DIRNAME}.zip.sha256 "
             cat "${DIRNAME}.zip.sha256" >> body.md
           done
           echo '```' >> body.md
 
-          # 写入环境变量给后面release使用
-          echo "RELEASE_FILES=$FILES" >> $GITHUB_ENV
+          echo "===== Generated files ====="
+          ls -la *.zip *.zip.sha256
 
       - name: Create & push tag
         run: |
@@ -78,6 +74,8 @@ jobs:
         with:
           tag_name: ${{ steps.genver.outputs.tag }}
           name: pemu_cheats ${{ steps.genver.outputs.tag }}
-          files: ${{ env.RELEASE_FILES }}
+          files: |
+            *.zip
+            *.zip.sha256
           body_path: body.md
           fail_on_unmatched_files: true
