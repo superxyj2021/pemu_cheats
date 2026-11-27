@@ -1,4 +1,4 @@
-name: Package Lang Zips
+name: Package Cheats Zips
 
 on:
   push:
@@ -45,6 +45,10 @@ jobs:
             if [[ "$DIRNAME" == .* ]]; then
               continue
             fi
+            # 跳过空文件夹
+            if [ -z "$(ls -A "$DIRNAME")" ]; then
+              continue
+            fi
             zip -9 -r "${DIRNAME}.zip" "$DIRNAME" \
               -x "*.log" \
               -x "*.tmp" \
@@ -56,7 +60,6 @@ jobs:
             echo "${DIRNAME}.zip" >> assets.txt
             echo "${DIRNAME}.zip.sha256" >> assets.txt
 
-            # 写入release正文
             cat "${DIRNAME}.zip.sha256" >> body.md
           done
           echo '```' >> body.md
@@ -72,7 +75,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.genver.outputs.tag }}
-          name: Lang Package ${{ steps.genver.outputs.tag }}
+          name: pemu_cheats ${{ steps.genver.outputs.tag }}
           files: assets.txt
           body_path: body.md
           fail_on_unmatched_files: true
